@@ -17,19 +17,12 @@ export async function middleware(req) {
   const role = session.user?.user_metadata?.role
   const pathname = req.nextUrl.pathname
 
-  // Redirect logic
-  if (pathname === '/app') {
-    if (role === 'admin') {
-      return NextResponse.redirect(new URL('/app/admin/dashboard', req.url))
-    }
-    return NextResponse.redirect(new URL('/app/dashboard', req.url))
-  }
-
-  // Route protection
+  // Admin route protection
   if (pathname.startsWith('/app/admin') && role !== 'admin') {
     return NextResponse.redirect(new URL('/unauthorized', req.url))
   }
 
+  // User route protection
   if (pathname.startsWith('/app/dashboard') && role !== 'user') {
     return NextResponse.redirect(new URL('/unauthorized', req.url))
   }
@@ -39,8 +32,8 @@ export async function middleware(req) {
 
 export const config = {
   matcher: [
-    '/app',
     '/app/admin/:path*',
     '/app/dashboard/:path*',
+    // Add other protected paths here
   ],
 }
