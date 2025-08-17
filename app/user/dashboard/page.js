@@ -39,7 +39,7 @@ export default function UserDashboard() {
     }
 
     checkAuth()
-  }, [roter,supabase.auth])
+  }, [router,supabase.auth])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

@@ -1,16 +1,16 @@
+// app/admin/create-user/page.js
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { createUserServerAction } from './server' // server-side function
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { createUserServerAction } from "./server"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 export default function CreateUser() {
   const router = useRouter()
   const supabase = createClientComponentClient()
-
   const [formData, setFormData] = useState({
-    name: '',
+    full_name: '',
     email: '',
     password: '',
     department: '',
@@ -21,10 +21,7 @@ export default function CreateUser() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [isPending, startTransition] = useTransition()
-
-  useEffect(() => {
-    // Optional: Add admin role check here
-  }, [router, supabase])
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -33,39 +30,66 @@ export default function CreateUser() {
     setSuccess('')
   }
 
-  const handleSubmit = (e) => {
+  const checkEmailExists = async (email) => {
+    if (!email) return false
+    setIsCheckingEmail(true)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle()
+      
+      if (error) throw error
+      return !!data
+    } catch (err) {
+      console.error('Email check error:', err)
+      return false
+    } finally {
+      setIsCheckingEmail(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setSuccess('')
 
-    if (
-      !formData.name ||
-      !formData.email ||
-      !formData.password ||
-      !formData.department ||
-      !formData.academic_year ||
-      !formData.contact_number ||
-      formData.password.length < 6
-    ) {
-      setError('All fields are required. Password must be ≥ 6 characters.')
+    // Basic validation
+    if (!formData.full_name || !formData.email || !formData.password) {
+      setError('Name, email and password are required')
+      return
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
+    // Check email availability
+    const emailExists = await checkEmailExists(formData.email)
+    if (emailExists) {
+      setError('User with this email already exists')
       return
     }
 
     startTransition(async () => {
       const result = await createUserServerAction(formData)
-
-      if (result.error) {
+      
+      if (result?.error) {
         setError(result.error)
       } else {
-        setSuccess('User created successfully.')
+        setSuccess(result.success || 'User created successfully!')
         setFormData({
-          name: '',
+          full_name: '',
           email: '',
           password: '',
           department: '',
           academic_year: '',
           contact_number: '',
         })
+        // Optionally redirect after delay
+        setTimeout(() => router.push('/admin/dashboard'), 2000)
       }
     })
   }
@@ -73,7 +97,6 @@ export default function CreateUser() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-white to-blue-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,7 +107,6 @@ export default function CreateUser() {
           <h2 className="text-3xl font-bold text-gray-900">Create New User</h2>
         </div>
 
-        {/* Form Card */}
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
           {error && (
             <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
@@ -98,13 +120,12 @@ export default function CreateUser() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Full Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name *</label>
               <input
                 type="text"
-                name="name"
-                value={formData.name}
+                name="full_name"
+                value={formData.full_name}
                 onChange={handleChange}
                 placeholder="Full Name"
                 required
@@ -112,13 +133,16 @@ export default function CreateUser() {
               />
             </div>
 
-            {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Email *
+                {isCheckingEmail && (
+                  <span className="ml-2 text-xs text-gray-500">Checking availability...</span>
+                )}
+              </label>
               <input
                 type="email"
                 name="email"
-                autoComplete="email"
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -127,22 +151,19 @@ export default function CreateUser() {
               />
             </div>
 
-            {/* Password */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Password * (min 6 chars)</label>
               <input
                 type="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Password"
                 required
                 minLength={6}
                 className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-            {/* Department */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Department</label>
               <input
@@ -151,12 +172,10 @@ export default function CreateUser() {
                 value={formData.department}
                 onChange={handleChange}
                 placeholder="e.g. Computer Science"
-                required
                 className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-            {/* Academic Year */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Academic Year</label>
               <input
@@ -165,12 +184,10 @@ export default function CreateUser() {
                 value={formData.academic_year}
                 onChange={handleChange}
                 placeholder="e.g. Second Year"
-                required
                 className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-            {/* Contact Number */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Contact Number</label>
               <input
@@ -179,16 +196,13 @@ export default function CreateUser() {
                 value={formData.contact_number}
                 onChange={handleChange}
                 placeholder="10-digit phone number"
-                required
-                pattern="[0-9]{10}"
                 className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || isCheckingEmail}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             >
               {isPending ? 'Creating...' : 'Create User'}
