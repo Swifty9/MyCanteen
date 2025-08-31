@@ -20,7 +20,7 @@ export default function AdminDashboard() {
   const loadUsers = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("profiles_new")
         .select("id, user_id, full_name, email, contact_number, department, academic_year, role, last_poll_at, created_at")
         .neq('role', 'admin')
         .order("created_at", { ascending: false })
@@ -44,7 +44,7 @@ export default function AdminDashboard() {
 
     try {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("profiles_new")
         .select("id, email, full_name, role, created_at, contact_number, department, academic_year")
         .or(`full_name.ilike.%${value}%, email.ilike.%${value}%`)
         .order("created_at", { ascending: false })
@@ -60,41 +60,41 @@ export default function AdminDashboard() {
     }
   }
 
-  const checkAuthAndLoadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !session) throw new Error('Please login');
+  // const checkAuthAndLoadData = useCallback(async () => {
+  //   try {
+  //     setLoading(true);
+  //     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  //     if (sessionError || !session) throw new Error('Please login');
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .maybeSingle();
+  //     const { data: profile } = await supabase
+  //       .from('profiles')
+  //       .select('*')
+  //       .eq('id', session.user.id)
+  //       .maybeSingle();
 
-      if (!profile) throw new Error('Profile not found');
-      if (profile.role !== 'admin') throw new Error('Admin access required');
+  //     if (!profile) throw new Error('Profile not found');
+  //     if (profile.role !== 'admin') throw new Error('Admin access required');
 
-      setCurrentUser({ 
-        id: session.user.id, 
-        email: session.user.email, 
-        name: profile.full_name, 
-        role: profile.role 
-      });
+  //     setCurrentUser({ 
+  //       id: session.user.id, 
+  //       email: session.user.email, 
+  //       name: profile.full_name, 
+  //       role: profile.role 
+  //     });
 
-      await loadUsers();
-    } catch (err) {
-      console.error(err);
-      setError(err.message);
-      if (!err.message.includes('profile')) router.push('/login');
-    } finally {
-      setLoading(false);
-    }
-  }, [router, loadUsers, supabase]);  // ✅ supabase added
+  //     await loadUsers();
+  //   } catch (err) {
+  //     console.error(err);
+  //     setError(err.message);
+  //     if (!err.message.includes('profile')) router.push('/login');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }, [router, loadUsers, supabase]);  // ✅ supabase added
 
-  useEffect(() => {
-    checkAuthAndLoadData();
-  }, [checkAuthAndLoadData]);
+  // useEffect(() => {
+  //   checkAuthAndLoadData();
+  // }, [checkAuthAndLoadData]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -107,11 +107,11 @@ export default function AdminDashboard() {
     user.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-    </div>
-  )
+  // if (loading) return (
+  //   <div className="min-h-screen flex items-center justify-center bg-gray-50">
+  //     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+  //   </div>
+  // )
 
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -142,7 +142,7 @@ export default function AdminDashboard() {
               Add User
             </button>
             <button 
-              onClick={handleLogout} 
+              // onClick={handleLogout} 
               className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
             >
               Logout
